@@ -2,3 +2,4 @@ NAME                 LINK                                                       
 
 Facebook_combined:   https://snap.stanford.edu/data/ego-Facebook.html            4k , 80k
 cit-Helpth           https://networkrepository.com/cit-HepTh.php                 23k , 2.7M
+Enzymes              https://networkrepository.com/ENZYMES.php                   20k , 75k
