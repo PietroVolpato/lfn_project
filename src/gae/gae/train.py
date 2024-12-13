@@ -4,8 +4,11 @@ from __future__ import print_function
 import time
 import os
 
-# Train on CPU (hide GPU) due to memory constraints
-# os.environ['CUDA_VISIBLE_DEVICES'] = ""
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+
+#Print the device name
+from tensorflow.python.client import device_lib
+print(device_lib.list_local_devices())
 
 import tensorflow as tf
 import numpy as np
@@ -138,6 +141,8 @@ adj_label = adj_train + sp.eye(adj_train.shape[0])
 adj_label = sparse_to_tuple(adj_label)
 
 # Train model
+print("Start training")
+print("Device: ", device_lib.list_local_devices())
 for epoch in range(FLAGS.epochs):
 
     t = time.time()
