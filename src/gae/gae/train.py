@@ -96,7 +96,6 @@ with tf.compat.v1.name_scope('optimizer'):
 # Initialize session
 sess = tf.compat.v1.Session()
 sess.run(tf.compat.v1.global_variables_initializer())
-
 cost_val = []
 acc_val = []
 
