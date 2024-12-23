@@ -1,21 +1,9 @@
-from __future__ import division
-from __future__ import print_function
-
 import time
 import os
-
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
-
-#Print the device name
-from tensorflow.python.client import device_lib
-print(device_lib.list_local_devices())
-
 import tensorflow as tf
 import numpy as np
 import scipy.sparse as sp
-
-from sklearn.metrics import roc_auc_score
-from sklearn.metrics import average_precision_score
+from sklearn.metrics import roc_auc_score, average_precision_score
 
 from gae.optimizer import OptimizerAE, OptimizerVAE
 from gae.input_data import load_data
@@ -23,149 +11,81 @@ from gae.model import GCNModelAE, GCNModelVAE
 from gae.preprocessing import preprocess_graph, construct_feed_dict, sparse_to_tuple, mask_test_edges
 
 # Settings
-flags = tf.compat.v1.app.flags
-FLAGS = flags.FLAGS
-flags.DEFINE_float('learning_rate', 0.01, 'Initial learning rate.')
-flags.DEFINE_integer('epochs', 200, 'Number of epochs to train.')
-flags.DEFINE_integer('hidden1', 32, 'Number of units in hidden layer 1.')
-flags.DEFINE_integer('hidden2', 16, 'Number of units in hidden layer 2.')
-flags.DEFINE_float('weight_decay', 0., 'Weight for L2 loss on embedding matrix.')
-flags.DEFINE_float('dropout', 0., 'Dropout rate (1 - keep probability).')
+class Config:
+    learning_rate = 0.01
+    epochs = 200
+    hidden1 = 32
+    hidden2 = 16
+    weight_decay = 0.0
+    dropout = 0.0
+    model = 'gcn_ae'
+    dataset = 'cora'
+    features = 1  # Use features (1) or not (0)
 
-flags.DEFINE_string('model', 'gcn_ae', 'Model string.')
-flags.DEFINE_string('dataset', 'cora', 'Dataset string.')
-flags.DEFINE_integer('features', 1, 'Whether to use features (1) or not (0).')
+config = Config()
 
-model_str = FLAGS.model
-dataset_str = FLAGS.dataset
+# Enable GPU
+os.environ['CUDA_VISIBLE_DEVICES'] = "0"  # Adjust if you have multiple GPUs
 
 # Load data
-adj, features = load_data(dataset_str)
+adj, features = load_data(config.dataset)
 
 # Store original adjacency matrix (without diagonal entries) for later
-adj_orig = adj
-adj_orig = adj_orig - sp.dia_matrix((adj_orig.diagonal()[np.newaxis, :], [0]), shape=adj_orig.shape)
+adj_orig = adj - sp.dia_matrix((adj.diagonal()[np.newaxis, :], [0]), shape=adj.shape)
 adj_orig.eliminate_zeros()
 
 adj_train, train_edges, val_edges, val_edges_false, test_edges, test_edges_false = mask_test_edges(adj)
 adj = adj_train
 
-if FLAGS.features == 0:
+if not config.features:
     features = sp.identity(features.shape[0])  # featureless
 
 # Some preprocessing
 adj_norm = preprocess_graph(adj)
 
-# Define placeholders
-placeholders = {
-    'features': tf.compat.v1.sparse_placeholder(tf.float32),
-    'adj': tf.compat.v1.sparse_placeholder(tf.float32),
-    'adj_orig': tf.compat.v1.sparse_placeholder(tf.float32),
-    'dropout': tf.compat.v1.placeholder_with_default(0., shape=())
-}
-
-num_nodes = adj.shape[0]
-
+# Convert sparse matrices to TensorFlow SparseTensor
 features = sparse_to_tuple(features.tocoo())
+adj_label = sparse_to_tuple(adj_train + sp.eye(adj_train.shape[0]))
+
+# Model initialization
+num_nodes = adj.shape[0]
 num_features = features[2][1]
 features_nonzero = features[1].shape[0]
 
-# Create model
-model = None
-if model_str == 'gcn_ae':
-    model = GCNModelAE(placeholders, num_features, features_nonzero)
-elif model_str == 'gcn_vae':
-    model = GCNModelVAE(placeholders, num_features, num_nodes, features_nonzero)
+if config.model == 'gcn_ae':
+    model = GCNModelAE(num_features, num_nodes, features_nonzero, config.hidden1, config.hidden2, config.dropout)
+elif config.model == 'gcn_vae':
+    model = GCNModelVAE(num_features, num_nodes, features_nonzero, config.hidden1, config.hidden2, config.dropout)
 
+# Optimizer
 pos_weight = float(adj.shape[0] * adj.shape[0] - adj.sum()) / adj.sum()
 norm = adj.shape[0] * adj.shape[0] / float((adj.shape[0] * adj.shape[0] - adj.sum()) * 2)
 
-# Optimizer
-with tf.compat.v1.name_scope('optimizer'):
-    if model_str == 'gcn_ae':
-        opt = OptimizerAE(preds=model.reconstructions,
-                          labels=tf.reshape(tf.sparse.to_dense(placeholders['adj_orig'],
-                                                                      validate_indices=False), [-1]),
-                          pos_weight=pos_weight,
-                          norm=norm)
-    elif model_str == 'gcn_vae':
-        opt = OptimizerVAE(preds=model.reconstructions,
-                           labels=tf.reshape(tf.sparse.to_dense(placeholders['adj_orig'],
-                                                                       validate_indices=False), [-1]),
-                           model=model, num_nodes=num_nodes,
-                           pos_weight=pos_weight,
-                           norm=norm)
+optimizer = tf.keras.optimizers.Adam(learning_rate=config.learning_rate)
 
-# Initialize session
-sess = tf.compat.v1.Session()
-sess.run(tf.compat.v1.global_variables_initializer())
-cost_val = []
-acc_val = []
+# Training loop
+@tf.function
+def train_step(features, adj_norm, adj_label, dropout):
+    with tf.GradientTape() as tape:
+        reconstructions = model(features, adj_norm, dropout)
+        loss = model.loss(reconstructions, adj_label, pos_weight, norm)
+    gradients = tape.gradient(loss, model.trainable_variables)
+    optimizer.apply_gradients(zip(gradients, model.trainable_variables))
+    return loss
 
-
-def get_roc_score(edges_pos, edges_neg, emb=None):
-    if emb is None:
-        feed_dict.update({placeholders['dropout']: 0})
-        emb = sess.run(model.z_mean, feed_dict=feed_dict)
-
-    def sigmoid(x):
-        return 1 / (1 + np.exp(-x))
-
-    # Predict on test set of edges
-    adj_rec = np.dot(emb, emb.T)
-    preds = []
-    pos = []
-    for e in edges_pos:
-        preds.append(sigmoid(adj_rec[e[0], e[1]]))
-        pos.append(adj_orig[e[0], e[1]])
-
-    preds_neg = []
-    neg = []
-    for e in edges_neg:
-        preds_neg.append(sigmoid(adj_rec[e[0], e[1]]))
-        neg.append(adj_orig[e[0], e[1]])
-
-    preds_all = np.hstack([preds, preds_neg])
-    labels_all = np.hstack([np.ones(len(preds)), np.zeros(len(preds_neg))])
-    roc_score = roc_auc_score(labels_all, preds_all)
-    ap_score = average_precision_score(labels_all, preds_all)
-
-    return roc_score, ap_score
-
-
-cost_val = []
-acc_val = []
-val_roc_score = []
-
-adj_label = adj_train + sp.eye(adj_train.shape[0])
-adj_label = sparse_to_tuple(adj_label)
-
-# Train model
-print("Start training")
-print("Device: ", device_lib.list_local_devices())
-for epoch in range(FLAGS.epochs):
-
+# Training
+print("Training...")
+for epoch in range(config.epochs):
     t = time.time()
-    # Construct feed dictionary
-    feed_dict = construct_feed_dict(adj_norm, adj_label, features, placeholders)
-    feed_dict.update({placeholders['dropout']: FLAGS.dropout})
-    # Run single weight update
-    outs = sess.run([opt.opt_op, opt.cost, opt.accuracy], feed_dict=feed_dict)
+    loss = train_step(features, adj_norm, adj_label, config.dropout)
 
-    # Compute average loss
-    avg_cost = outs[1]
-    avg_accuracy = outs[2]
+    # Evaluate
+    if epoch % 10 == 0 or epoch == config.epochs - 1:
+        roc_score, ap_score = model.evaluate(adj_orig, val_edges, val_edges_false)
+        print(f"Epoch {epoch+1}, Loss: {loss:.5f}, ROC: {roc_score:.5f}, AP: {ap_score:.5f}, Time: {time.time() - t:.5f}")
 
-    roc_curr, ap_curr = get_roc_score(val_edges, val_edges_false)
-    val_roc_score.append(roc_curr)
-
-    print("Epoch:", '%04d' % (epoch + 1), "train_loss=", "{:.5f}".format(avg_cost),
-          "train_acc=", "{:.5f}".format(avg_accuracy), "val_roc=", "{:.5f}".format(val_roc_score[-1]),
-          "val_ap=", "{:.5f}".format(ap_curr),
-          "time=", "{:.5f}".format(time.time() - t))
-
+# Testing
 print("Optimization Finished!")
-
-roc_score, ap_score = get_roc_score(test_edges, test_edges_false)
-print('Test ROC score: ' + str(roc_score))
-print('Test AP score: ' + str(ap_score))
+roc_score, ap_score = model.evaluate(adj_orig, test_edges, test_edges_false)
+print(f"Test ROC score: {roc_score:.5f}")
+print(f"Test AP score: {ap_score:.5f}")

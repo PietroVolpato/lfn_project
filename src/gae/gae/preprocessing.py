@@ -93,7 +93,7 @@ def mask_test_edges(adj):
                 continue
             if ismember([idx_i, idx_j], np.array(val_edges_false)):
                 continue
-    val_edges_false.append([idx_i, idx_j])
+        val_edges_false.append([idx_i, idx_j])
 
     assert not ismember(test_edges_false, edges_all)
     assert not ismember(val_edges_false, edges_all)
