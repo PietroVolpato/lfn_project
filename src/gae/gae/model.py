@@ -1,37 +1,19 @@
 from gae.layers import GraphConvolution, GraphConvolutionSparse, InnerProductDecoder
 import tensorflow as tf
 
-flags = tf.compat.v1.app.flags
-FLAGS = flags.FLAGS
-
-
-class Model(object):
-    def __init__(self, **kwargs):
-        allowed_kwargs = {'name', 'logging'}
-        for kwarg in kwargs.keys():
-            assert kwarg in allowed_kwargs, 'Invalid keyword argument: ' + kwarg
-
-        for kwarg in kwargs.keys():
-            assert kwarg in allowed_kwargs, 'Invalid keyword argument: ' + kwarg
-        name = kwargs.get('name')
-        if not name:
-            name = self.__class__.__name__.lower()
-        self.name = name
-
-        logging = kwargs.get('logging', False)
+class Model(tf.keras.Model):
+    def __init__(self, name=None, logging=False):
+        super(Model, self).__init__(name=name)
         self.logging = logging
-
         self.vars = {}
 
-    def _build(self):
+    def build_model(self):
+        """Override this method to build the model."""
         raise NotImplementedError
 
-    def build(self):
-        """ Wrapper for _build() """
-        with tf.compat.v1.variable_scope(self.name):
-            self._build()
-        variables = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.GLOBAL_VARIABLES, scope=self.name)
-        self.vars = {var.name: var for var in variables}
+    def call(self, inputs, training=False):
+        """Override this method to define the forward pass."""
+        raise NotImplementedError
 
     def fit(self):
         pass
@@ -39,78 +21,104 @@ class Model(object):
     def predict(self):
         pass
 
-
 class GCNModelAE(Model):
-    def __init__(self, placeholders, num_features, features_nonzero, **kwargs):
+    def __init__(self, num_features, num_nodes, features_nonzero, hidden1, hidden2, dropout=0.0, **kwargs):
         super(GCNModelAE, self).__init__(**kwargs)
-
-        self.inputs = placeholders['features']
         self.input_dim = num_features
+        self.num_nodes = num_nodes
         self.features_nonzero = features_nonzero
-        self.adj = placeholders['adj']
-        self.dropout = placeholders['dropout']
-        self.build()
+        self.hidden1_units = hidden1
+        self.hidden2_units = hidden2
+        self.dropout_rate = dropout
 
-    def _build(self):
-        self.hidden1 = GraphConvolutionSparse(input_dim=self.input_dim,
-                                              output_dim=FLAGS.hidden1,
-                                              adj=self.adj,
-                                              features_nonzero=self.features_nonzero,
-                                              act=tf.nn.relu,
-                                              dropout=self.dropout,
-                                              logging=self.logging)(self.inputs)
+        # Define layers
+        self.hidden1_layer = GraphConvolutionSparse(
+            input_dim=num_features,
+            output_dim=hidden1,
+            adj=None,  # Placeholder, will be set in call method
+            features_nonzero=features_nonzero,
+            act=tf.nn.relu,
+            dropout=dropout,
+            logging=self.logging
+        )
 
-        self.embeddings = GraphConvolution(input_dim=FLAGS.hidden1,
-                                           output_dim=FLAGS.hidden2,
-                                           adj=self.adj,
-                                           act=lambda x: x,
-                                           dropout=self.dropout,
-                                           logging=self.logging)(self.hidden1)
+        self.embedding_layer = GraphConvolution(
+            input_dim=hidden1,
+            output_dim=hidden2,
+            adj=None,  # Placeholder, will be set in call method
+            act=lambda x: x,  # Linear activation
+            dropout=dropout,
+            logging=self.logging
+        )
 
-        self.z_mean = self.embeddings
+        self.decoder = InnerProductDecoder(
+            input_dim=hidden2,
+            act=lambda x: x,
+            logging=self.logging
+        )
 
-        self.reconstructions = InnerProductDecoder(input_dim=FLAGS.hidden2,
-                                      act=lambda x: x,
-                                      logging=self.logging)(self.embeddings)
-
+    def call(self, inputs, training=False):
+        features, adj = inputs
+        self.hidden1_layer.adj = adj  # Set adj in call method
+        self.embedding_layer.adj = adj  # Set adj in call method
+        hidden1 = self.hidden1_layer(features, training=training)
+        embeddings = self.embedding_layer(hidden1, training=training)
+        reconstructions = self.decoder(embeddings)
+        return embeddings, reconstructions
 
 class GCNModelVAE(Model):
-    def __init__(self, placeholders, num_features, num_nodes, features_nonzero, **kwargs):
+    def __init__(self, num_features, num_nodes, features_nonzero, hidden1, hidden2, dropout=0.0, **kwargs):
         super(GCNModelVAE, self).__init__(**kwargs)
-
-        self.inputs = placeholders['features']
         self.input_dim = num_features
+        self.num_nodes = num_nodes
         self.features_nonzero = features_nonzero
-        self.n_samples = num_nodes
-        self.adj = placeholders['adj']
-        self.dropout = placeholders['dropout']
-        self.build()
+        self.hidden1_units = hidden1
+        self.hidden2_units = hidden2
+        self.dropout_rate = dropout
 
-    def _build(self):
-        self.hidden1 = GraphConvolutionSparse(input_dim=self.input_dim,
-                                              output_dim=FLAGS.hidden1,
-                                              adj=self.adj,
-                                              features_nonzero=self.features_nonzero,
-                                              act=tf.nn.relu,
-                                              dropout=self.dropout,
-                                              logging=self.logging)(self.inputs)
+        # Define layers
+        self.hidden1_layer = GraphConvolutionSparse(
+            input_dim=num_features,
+            output_dim=hidden1,
+            adj=None,  # Placeholder, will be set in call method
+            features_nonzero=features_nonzero,
+            act=tf.nn.relu,
+            dropout=dropout,
+            logging=self.logging
+        )
 
-        self.z_mean = GraphConvolution(input_dim=FLAGS.hidden1,
-                                       output_dim=FLAGS.hidden2,
-                                       adj=self.adj,
-                                       act=lambda x: x,
-                                       dropout=self.dropout,
-                                       logging=self.logging)(self.hidden1)
+        self.mean_layer = GraphConvolution(
+            input_dim=hidden1,
+            output_dim=hidden2,
+            adj=None,  # Placeholder, will be set in call method
+            act=lambda x: x,  # Linear activation
+            dropout=dropout,
+            logging=self.logging
+        )
 
-        self.z_log_std = GraphConvolution(input_dim=FLAGS.hidden1,
-                                          output_dim=FLAGS.hidden2,
-                                          adj=self.adj,
-                                          act=lambda x: x,
-                                          dropout=self.dropout,
-                                          logging=self.logging)(self.hidden1)
+        self.log_std_layer = GraphConvolution(
+            input_dim=hidden1,
+            output_dim=hidden2,
+            adj=None,  # Placeholder, will be set in call method
+            act=lambda x: x,  # Linear activation
+            dropout=dropout,
+            logging=self.logging
+        )
 
-        self.z = self.z_mean + tf.random.normal([self.n_samples, FLAGS.hidden2]) * tf.exp(self.z_log_std)
+        self.decoder = InnerProductDecoder(
+            input_dim=hidden2,
+            act=lambda x: x,
+            logging=self.logging
+        )
 
-        self.reconstructions = InnerProductDecoder(input_dim=FLAGS.hidden2,
-                                      act=lambda x: x,
-                                      logging=self.logging)(self.z)
+    def call(self, inputs, training=False):
+        features, adj = inputs
+        self.hidden1_layer.adj = adj  # Set adj in call method
+        self.mean_layer.adj = adj  # Set adj in call method
+        self.log_std_layer.adj = adj  # Set adj in call method
+        hidden1 = self.hidden1_layer(features, training=training)
+        z_mean = self.mean_layer(hidden1, training=training)
+        z_log_std = self.log_std_layer(hidden1, training=training)
+        z = z_mean + tf.random.normal([self.num_nodes, self.hidden2_units]) * tf.exp(z_log_std)
+        reconstructions = self.decoder(z)
+        return z_mean, z_log_std, z, reconstructions
