@@ -2,7 +2,7 @@
 
 #git clone https://github.com/PietroVolpato/lfn_project.git
 
-#SBATCH -job-name AW_biological_128
+#SBATCH --job-name AW_biological_128
 #SBATCH --ntasks 1
 #SBATCH --partition allgroups
 #SBATCH --time 02:00
