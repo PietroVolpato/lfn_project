@@ -11,4 +11,4 @@
 #SBATCH --error AW_biological_128_%j.txt
 
 cd AttentionWalk 
-srun python src/main.py --edge-path ../../data/proteins/PROTEINS-full.csv --embedding-path ../../result/embeddings_proteins_AW_128.csv
+srun python3 src/main.py --edge-path ../../data/proteins/PROTEINS-full.csv --embedding-path ../../result/embeddings_proteins_AW_128.csv
