@@ -10,5 +10,6 @@
 #SBATCH --output embeddings_AW_biological_128_%j.csv
 #SBATCH --error AW_biological_128_%j.txt
 
+pip install numpy texttable pandas scikit-learn networkx torch
 cd AttentionWalk 
 srun python3 src/main.py --edge-path ../../data/proteins/PROTEINS-full.csv --embedding-path ../../result/embeddings_proteins_AW_128.csv
