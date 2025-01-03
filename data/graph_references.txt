@@ -1,11 +1,7 @@
 NAME                 LINK                                                        # NODES, #EDGES 
 
-Facebook combined:   https://snap.stanford.edu/data/ego-Facebook.html            |V|=4039, |E|=88234
+Facebook combined    https://snap.stanford.edu/data/ego-Facebook.html            |V|=4039, |E|=88234
 cit-Helpth           https://networkrepository.com/cit-HepTh.php                 |V|=22908, |E|=2444798
 bio-CE-CX            https://networkrepository.com/bio-CE-CX.php                 |V|=15229, |E|=245952
-proteins-full 	     https://networkrepository.com/PROTEINS-full.php	     	 |V|=43466, |E|=81044  node labeled (1,2,3)
-spam                 https://networkrepository.com/web-spam-detection.php        |V|=9072, |E|=473854
-
-DISCARDED
-COX2-MD              https://networkrepository.com/COX2-MD.php                   8K  , 203k   NODE LABELED (labels: 1,2,3,4,5)
-CL-100K-1d8-L9       https://networkrepository.com/CL-100K-1d8-L9.php            92k , 437K   NODE LABELED (labels: 1,2,3,4,5,6,7,8,9,10)
+proteins-full 	     https://networkrepository.com/PROTEINS-full.php	     	 |V|=43466, |E|=81044  node labeled 3 classes
+spam                 https://networkrepository.com/web-spam-detection.php        |V|=9072, |E|=473854  node labeled 3 classes
