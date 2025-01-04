@@ -23,11 +23,11 @@ Here you cand find images about:
 - reconstruction errors of all graphs and algorithms (node2vec, LINE, AW)
 - node classification graphs proteins and spam
 - link prediction for all graphs and algorithms 
-- neighborhood presenration scores of all graphs and algorithms 
+- neighborhood preservation scores of all graphs and algorithms 
 - clistering of facebook graph using all algorithms
 - some plots representig the results for every algorithm
 
-The file "index.txt" contains the meaning of the images names
+The file "index.txt" contains information about the content of the images, which are named as integers
 
 ### /src
 This folder contains repositories and scripts for various node embedding algorithms and the notebook produced by us.
