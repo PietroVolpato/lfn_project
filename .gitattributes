@@ -1,3 +1,2 @@
 result/embeddings_proteins_AW_128.csv filter=lfs diff=lfs merge=lfs -text
 result/new_embeddings_proteins_AW_128.csv filter=lfs diff=lfs merge=lfs -text
-*.csv filter=lfs diff=lfs merge=lfs -text
