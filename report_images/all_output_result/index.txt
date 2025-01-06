@@ -1,14 +1,14 @@
-1		all reconstruction errors
+1 all reconstruction errors
 2 node classification proteins node2vec
 3 node classification proteins LINE
-4		node classification proteins ATTENTION WALK
+4 node classification proteins ATTENTION WALK
 5 node classification proteins only attributes
 6 node classification node2vec + attributes proteins
 7 node classification LINE + attributes proteins
-8		node classification ATTENTION WALK + attributes proteins
-9  node classification spam node2vec
+8 node classification ATTENTION WALK + attributes proteins
+9 node classification spam node2vec
 10 node classification spam LINE
-11      node classification spam ATTENTION WALK
+11 node classification spam ATTENTION WALK
 12		Link prediction facebook node2vec
 13		Link prediction facebook LINE
 14 Link prediction facebook ATTENTION WALK
@@ -23,11 +23,11 @@
 23		Link prediction spam node2vec
 24		Link prediction spam LINE
 25		Link prediction spam ATTENTION WALK
-26		all neighborhood preservation scores order 1
+26 all neighborhood preservation scores order 1
 27		all neighborhood preservation scores order 2
-28	clustering facebook node2vec. (modularity = 0.76734, not necessarily representative)
-29	clustering facebook LINE (modularity = 0.69999, not necessarily representative)
-30	clustering facebook ATTENTION WALK (modularity = 0.78343, not necessarily representative)
-31  2-D embeddings space facebook with AW
-32  Facebook graph (no clustering)
+28 clustering facebook node2vec. (modularity = 0.76734, not necessarily representative)
+29 clustering facebook LINE (modularity = 0.69999, not necessarily representative)
+30 clustering facebook ATTENTION WALK (modularity = 0.78343, not necessarily representative)
+31 2-D embeddings space facebook with AW
+32 Facebook graph (no clustering)
 
