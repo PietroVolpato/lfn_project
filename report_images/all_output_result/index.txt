@@ -15,6 +15,7 @@
 15		Link prediction biological node2vec
 16		Link prediction biological LINE
 17		Link prediction biological ATTENTION WALK
+33      Link prediction citation node2vec (added later sorry for the ordering, it is image 33)
 18		Link prediction citation LINE
 19		Link prediction citation ATTENTION WALK
 20		Link prediction proteins node2vec
