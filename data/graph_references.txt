@@ -4,4 +4,4 @@ Facebook combined   facebook                https://snap.stanford.edu/data/ego-F
 cit-Helpth          citation                https://networkrepository.com/cit-HepTh.php                 |V|=22908, |E|=2444798
 bio-CE-CX           biological              https://networkrepository.com/bio-CE-CX.php                 |V|=15229, |E|=245952
 proteins-full 	    proteins                https://networkrepository.com/PROTEINS-full.php	     	    |V|=43466, |E|=81044  node labeled 3 classes
-spam                spam                    https://networkrepository.com/web-spam-detection.php        |V|=9072, |E|=473854  node labeled 3 classes
+web-spam-detection  spam                    https://networkrepository.com/web-spam-detection.php        |V|=9072, |E|=473854  node labeled 3 classes
